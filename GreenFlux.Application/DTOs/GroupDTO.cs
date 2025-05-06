@@ -2,8 +2,9 @@
 {
     public record GroupDTO
     {
-        public Guid Id { get; set; }
+        public Guid Id { get; init; }
         public string Name { get; init; }
         public int Capacity { get; init; }
+        public List<ChargeStationDTO> ChargeStations { get; init; }
     }
 }

@@ -8,6 +8,7 @@ namespace GreenFlux.Infrastructure.Repositories
     public class ConnectorRepository : IConnectorRepository
     {
         private readonly GreenFluxDbContext _dbContext;
+
         public ConnectorRepository(GreenFluxDbContext dbContext)
         {
             _dbContext = dbContext;
@@ -26,14 +27,14 @@ namespace GreenFlux.Infrastructure.Repositories
             await _dbContext.SaveChangesAsync();
         }
 
-        public async Task<Connector?> Get(int id, Guid chargeStationId )
+        public async Task<Connector?> Get(int id, Guid chargeStationId)
         {
-            return await _dbContext.Connectors.FindAsync(id,chargeStationId);
+            return await _dbContext.Connectors.FindAsync(id, chargeStationId);
         }
 
         public async Task<List<Connector>> GetAll(Guid chargeStationId)
         {
-            return await _dbContext.Connectors.Where(a=>a.ChargeStationId==chargeStationId).ToListAsync();
+            return await _dbContext.Connectors.Where(a => a.ChargeStationId == chargeStationId).ToListAsync();
         }
 
         public async Task Update(Connector entity)

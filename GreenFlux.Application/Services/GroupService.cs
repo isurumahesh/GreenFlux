@@ -1,39 +1,36 @@
 ﻿using AutoMapper;
+using Dustin.Domain.Constants;
 using GreenFlux.Application.DTOs;
 using GreenFlux.Application.Exceptions;
 using GreenFlux.Application.Interfaces;
 using GreenFlux.Domain.Constants;
 using GreenFlux.Domain.Entities;
 using GreenFlux.Domain.Interfaces;
-using Microsoft.AspNetCore.JsonPatch;
 using System.Net;
-
 
 namespace GreenFlux.Application.Services
 {
     public class GroupService : IGroupService
     {
         private readonly IGroupRepository groupRepository;
-        private readonly IChargeStationRepository chargeStationRepository;
         private readonly IMapper mapper;
 
-        public GroupService(IGroupRepository groupRepository, IChargeStationRepository chargeStationRepository, IMapper mapper)
+        public GroupService(IGroupRepository groupRepository, IMapper mapper)
         {
-            this.groupRepository = groupRepository;
-            this.chargeStationRepository = chargeStationRepository;
+            this.groupRepository = groupRepository;         
             this.mapper = mapper;
         }
 
         public async Task<GroupDTO> SaveGroup(GroupCreateDTO groupDTO)
         {
-            if(groupDTO.ChargeStation is not null)
+            if (groupDTO.ChargeStation is not null)
             {
                 if (groupDTO.ChargeStation.Connectors.Count >= ChargeStationConstants.MaxConnectorCount || !groupDTO.ChargeStation.Connectors.Any())
                 {
-                    throw new CustomException
+                    throw new ConnectorCountException
                     {
                         HttpStatusCode = HttpStatusCode.UnprocessableContent,
-                        Message = ErrorMessages.ConnectorCount
+                        ErrorMessage = ErrorMessages.ConnectorCount
                     };
                 }
 
@@ -41,14 +38,14 @@ namespace GreenFlux.Application.Services
 
                 if (groupDTO.Capacity < totalConnectorsCurrent)
                 {
-                    throw new CustomException
+                    throw new MaxCurrentExceedsException
                     {
                         HttpStatusCode = HttpStatusCode.UnprocessableContent,
-                        Message = ErrorMessages.MaxCurrentIsHigh
+                        ErrorMessage = ErrorMessages.MaxCurrentIsHigh
                     };
                 }
             }
-        
+
             var group = mapper.Map<Group>(groupDTO);
             await groupRepository.Add(group);
             var groupDto = mapper.Map<GroupDTO>(group);
@@ -58,20 +55,20 @@ namespace GreenFlux.Application.Services
         public async Task UpdateGroup(Guid groupId, GroupUpdateDTO groupDTO)
         {
             await VerifyCapacity(groupId, groupDTO.Capacity);
-            var group = await groupRepository.Get(groupId);        
+            var group = await groupRepository.Get(groupId);
             var mappedGroup = mapper.Map(groupDTO, group);
             await groupRepository.Update(mappedGroup);
         }
 
         public async Task<GroupDTO> GetGroup(Guid id)
         {
-            var group = await groupRepository.Get(id);
+            var group = await groupRepository.GetGroupWithChargeStations(id);
             var mappedGroup = mapper.Map<GroupDTO>(group);
             return mappedGroup;
         }
 
         public async Task<List<GroupDTO>> GetAllGroups()
-        {           
+        {
             var groups = await groupRepository.GetAll();
             var mappedGroups = mapper.Map<List<GroupDTO>>(groups);
             return mappedGroups;
@@ -85,25 +82,18 @@ namespace GreenFlux.Application.Services
 
         private async Task VerifyCapacity(Guid groupId, int capacity)
         {
-            var chargeStations = await chargeStationRepository.GetAll(groupId);
+            var group = await groupRepository.GetGroupWithChargeStations(groupId);
 
-            if (!chargeStations.Any()) return;
-
-            var totalAmps = 0;
-            foreach (var item in chargeStations)
-            {
-                totalAmps = totalAmps + item.Connectors.Sum(a => a.MaxCurrent);
-            }
+            var totalAmps = group.GetCurrentOfAllConnectors();
 
             if (capacity < totalAmps)
             {
-                throw new CustomException
+                throw new MaxCurrentExceedsException
                 {
                     HttpStatusCode = HttpStatusCode.UnprocessableContent,
-                    Message = ErrorMessages.CapacityTooLow
+                    ErrorMessage = ErrorMessages.MaxCurrentIsHigh
                 };
             }
-
         }
     }
 }

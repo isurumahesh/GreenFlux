@@ -6,7 +6,6 @@ using GreenFlux.Application.Services;
 using GreenFlux.Domain.Constants;
 using GreenFlux.Domain.Entities;
 using GreenFlux.Domain.Interfaces;
-using Microsoft.AspNetCore.JsonPatch;
 using Moq;
 
 namespace GreenFlux.UnitTests.Application.Services
@@ -38,8 +37,8 @@ namespace GreenFlux.UnitTests.Application.Services
             var chargeStationId = Guid.NewGuid();
             var chargeStationDto = new ChargeStationCreateDTO { Name = "ChargeStation 1", Connectors = new List<ConnectorCreateDTO> { new ConnectorCreateDTO { MaxCurrent = 20 } } };
             var group = new Group { Id = groupId, Name = "Group A", Capacity = 100 };
-            mockGroupRepository.Setup(repo => repo.Get(It.IsAny<Guid>())).ReturnsAsync(group);
             mockChargeStationRepository.Setup(repo => repo.Add(It.IsAny<ChargeStation>())).ReturnsAsync(chargeStationId);
+            mockGroupRepository.Setup(repo => repo.GetGroupWithChargeStations(It.IsAny<Guid>())).ReturnsAsync(group);
 
             var result = await chargeStationService.SaveChargeStation(groupId, chargeStationDto);
 
@@ -55,8 +54,8 @@ namespace GreenFlux.UnitTests.Application.Services
             var chargeStationDto = new ChargeStationCreateDTO { Name = "ChargeStation 1" };
             mockChargeStationRepository.Setup(repo => repo.Add(It.IsAny<ChargeStation>())).ReturnsAsync(chargeStationId);
 
-            var exception = await Assert.ThrowsAsync<CustomException>(() => chargeStationService.SaveChargeStation(groupId, chargeStationDto));
-            Assert.Equal(ErrorMessages.ConnectorCount, exception.Message);
+            var exception = await Assert.ThrowsAsync<ConnectorCountException>(() => chargeStationService.SaveChargeStation(groupId, chargeStationDto));
+            Assert.Equal(ErrorMessages.ConnectorCount, exception.ErrorMessage);
         }
 
         [Fact]

@@ -3,7 +3,7 @@ using System.Net;
 
 namespace GreenFlux.Application.Exceptions
 {
-    public class CustomException : Exception, ICustomException
+    public class ConnectorCountException : Exception, ICustomException
     {
         public HttpStatusCode? HttpStatusCode { get; set; }
         public int ErrorCode { get; set; }

@@ -8,6 +8,7 @@ namespace GreenFlux.Infrastructure.Repositories
     public class GroupRepository : IGroupRepository
     {
         private readonly GreenFluxDbContext _dbContext;
+
         public GroupRepository(GreenFluxDbContext dbContext)
         {
             this._dbContext = dbContext;
@@ -33,13 +34,17 @@ namespace GreenFlux.Infrastructure.Repositories
 
         public async Task<Group?> GetGroupWithChargeStations(Guid id)
         {
-            return await _dbContext.Groups.Include(a => a.ChargeStations).ThenInclude(a => a.Connectors).SingleOrDefaultAsync(a => a.Id == id);
+            return await _dbContext.Groups.Include(a => a.ChargeStations)
+                .ThenInclude(a => a.Connectors)
+                .SingleOrDefaultAsync(a => a.Id == id);
         }
 
         public async Task<List<Group>> GetAll()
         {
             return await _dbContext.Groups
+                .AsSplitQuery()
                 .Include(a => a.ChargeStations)
+                .ThenInclude(a => a.Connectors)
                 .AsNoTracking()
                 .ToListAsync();
         }

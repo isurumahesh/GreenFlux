@@ -30,7 +30,6 @@ namespace GreenFlux.Application
 
         private ChargeStation MapChargeStation(ChargeStationCreateDTO chargeStationCreateDto)
         {
-
             return new ChargeStation
             {
                 Name = chargeStationCreateDto.Name,

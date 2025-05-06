@@ -4,7 +4,6 @@ using FluentValidation.AspNetCore;
 using FluentValidation.Results;
 using GreenFlux.Application.DTOs;
 using GreenFlux.Application.Interfaces;
-using GreenFlux.Domain.Entities;
 using Microsoft.AspNetCore.JsonPatch;
 using Microsoft.AspNetCore.Mvc;
 
@@ -14,24 +13,11 @@ namespace GreenFlux.API.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    public class GroupsController : ControllerBase
+    public class GroupsController(IGroupService groupService, IValidator<GroupCreateDTO> createValidator, IValidator<GroupUpdateDTO> updateValidator, IMapper mapper) : ControllerBase
     {
-        private readonly IGroupService groupService;
-        private readonly IValidator<GroupCreateDTO> createValidator;
-        private readonly IValidator<GroupUpdateDTO> updateValidator;
-        private readonly IMapper mapper;
-
-        public GroupsController(IGroupService groupService, IValidator<GroupCreateDTO> createValidator, IValidator<GroupUpdateDTO> updateValidator, IMapper mapper)
-        {
-            this.groupService = groupService;
-            this.createValidator = createValidator;
-            this.updateValidator = updateValidator;
-            this.mapper = mapper;
-
-        }
-
         // GET: api/<GroupsController>
         [HttpGet]
+        [ProducesResponseType(typeof(List<GroupDTO>), StatusCodes.Status200OK)]
         public async Task<IActionResult> Get()
         {
             var groups = await groupService.GetAllGroups();
@@ -40,6 +26,8 @@ namespace GreenFlux.API.Controllers
 
         // GET api/<GroupsController>/5
         [HttpGet("{id}")]
+        [ProducesResponseType(typeof(GroupDTO), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<IActionResult> GetById([FromRoute] Guid id)
         {
             var group = await groupService.GetGroup(id);
@@ -53,6 +41,8 @@ namespace GreenFlux.API.Controllers
 
         // POST api/<GroupsController>
         [HttpPost]
+        [ProducesResponseType(StatusCodes.Status201Created)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> Post([FromBody] GroupCreateDTO group)
         {
             ValidationResult result = await createValidator.ValidateAsync(group);
@@ -69,6 +59,9 @@ namespace GreenFlux.API.Controllers
 
         // PUT api/<GroupsController>/5
         [HttpPut("{id}")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<IActionResult> Put([FromRoute] Guid id, [FromBody] GroupUpdateDTO group)
         {
             ValidationResult result = await updateValidator.ValidateAsync(group);
@@ -90,6 +83,9 @@ namespace GreenFlux.API.Controllers
         }
 
         [HttpPatch("{id}")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<IActionResult> Patch([FromRoute] Guid id, JsonPatchDocument<GroupUpdateDTO> patchDocument)
         {
             var existingGroup = await groupService.GetGroup(id);
@@ -121,6 +117,8 @@ namespace GreenFlux.API.Controllers
 
         // DELETE api/<GroupsController>/5
         [HttpDelete("{id}")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<IActionResult> Delete([FromRoute] Guid id)
         {
             var existingGroup = await groupService.GetGroup(id);

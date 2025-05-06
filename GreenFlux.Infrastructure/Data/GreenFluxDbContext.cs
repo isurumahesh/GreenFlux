@@ -1,5 +1,4 @@
 ﻿using GreenFlux.Domain.Entities;
-using GreenFlux.Infrastructure.Extensions;
 using Microsoft.EntityFrameworkCore;
 
 namespace GreenFlux.Infrastructure.Data
@@ -36,7 +35,7 @@ namespace GreenFlux.Infrastructure.Data
                       .OnDelete(DeleteBehavior.Cascade);
             });
 
-         //   modelBuilder.Seed();
+            //   modelBuilder.Seed();
         }
 
         public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)

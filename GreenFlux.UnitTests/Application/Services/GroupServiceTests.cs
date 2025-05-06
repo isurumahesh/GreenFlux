@@ -6,15 +6,13 @@ using GreenFlux.Application.Services;
 using GreenFlux.Domain.Constants;
 using GreenFlux.Domain.Entities;
 using GreenFlux.Domain.Interfaces;
-using Microsoft.AspNetCore.JsonPatch;
 using Moq;
 
 namespace GreenFlux.UnitTests.Application.Services
 {
     public class GroupServiceTests
     {
-        private readonly Mock<IGroupRepository> mockGroupRepository;
-        private readonly Mock<IChargeStationRepository> mockChargeStationRepository;
+        private readonly Mock<IGroupRepository> mockGroupRepository;      
         private readonly GroupService groupService;
         private readonly IMapper mapper;
 
@@ -26,9 +24,8 @@ namespace GreenFlux.UnitTests.Application.Services
             });
             mapper = mappingConfig.CreateMapper();
 
-            mockGroupRepository = new Mock<IGroupRepository>();
-            mockChargeStationRepository = new Mock<IChargeStationRepository>();
-            groupService = new GroupService(mockGroupRepository.Object, mockChargeStationRepository.Object, mapper);
+            mockGroupRepository = new Mock<IGroupRepository>();          
+            groupService = new GroupService(mockGroupRepository.Object, mapper);
         }
 
         [Fact]
@@ -50,7 +47,6 @@ namespace GreenFlux.UnitTests.Application.Services
         {
             var groupId = Guid.NewGuid();
             var groupUpdateDTO = new GroupUpdateDTO { Name = "Group A", Capacity = 200 };
-            var group = new Group { Id = groupId, Name = "Original Group", Capacity = 100 };
             var chargeStations = new List<ChargeStation>
             {
                 new ChargeStation
@@ -63,14 +59,14 @@ namespace GreenFlux.UnitTests.Application.Services
                     }
                 }
             };
-            mockGroupRepository.Setup(repo => repo.Get(groupId)).ReturnsAsync(group);
+            var group = new Group { Id = groupId, Name = "Original Group", Capacity = 100, ChargeStations = chargeStations };
+
+            mockGroupRepository.Setup(repo => repo.GetGroupWithChargeStations(groupId)).ReturnsAsync(group);
             mockGroupRepository.Setup(repo => repo.Update(It.IsAny<Group>())).Returns(Task.CompletedTask);
-            mockChargeStationRepository.Setup(repo => repo.GetAll(groupId)).ReturnsAsync(chargeStations);
-
+   
             await groupService.UpdateGroup(groupId, groupUpdateDTO);
-
-            mockChargeStationRepository.Verify(repo => repo.GetAll(groupId), Times.Once);
-            mockGroupRepository.Verify(repo => repo.Get(groupId), Times.Once);
+           
+            mockGroupRepository.Verify(repo => repo.GetGroupWithChargeStations(groupId), Times.Once);
         }
 
         [Fact]
@@ -90,11 +86,12 @@ namespace GreenFlux.UnitTests.Application.Services
                     }
                 }
             };
+            var group = new Group { Id = groupId, Name = "Original Group", Capacity = 100, ChargeStations = chargeStations };
+          
+            mockGroupRepository.Setup(repo => repo.GetGroupWithChargeStations(groupId)).ReturnsAsync(group);
 
-            mockChargeStationRepository.Setup(repo => repo.GetAll(groupId)).ReturnsAsync(chargeStations);
-
-            var exception = await Assert.ThrowsAsync<CustomException>(() => groupService.UpdateGroup(groupId, groupUpdateDTO));
-            Assert.Equal(ErrorMessages.CapacityTooLow, exception.Message);
+            var exception = await Assert.ThrowsAsync<MaxCurrentExceedsException>(() => groupService.UpdateGroup(groupId, groupUpdateDTO));
+            Assert.Equal(ErrorMessages.MaxCurrentIsHigh, exception.ErrorMessage);
         }
 
         [Fact]
@@ -102,14 +99,12 @@ namespace GreenFlux.UnitTests.Application.Services
         {
             var groupId = Guid.NewGuid();
             var groupUpdateDTO = new GroupUpdateDTO { Name = "Group A", Capacity = 200 };
-            var group = new Group { Id = groupId, Name = "Original Group", Capacity = 100 };
-            mockGroupRepository.Setup(repo => repo.Get(groupId)).ReturnsAsync(group);
-            mockChargeStationRepository.Setup(repo => repo.GetAll(groupId)).ReturnsAsync(new List<ChargeStation>());
-
+            var group = new Group { Id = groupId, Name = "Original Group", Capacity = 100, ChargeStations = new List<ChargeStation>() };
+            mockGroupRepository.Setup(repo => repo.GetGroupWithChargeStations(groupId)).ReturnsAsync(group);
+          
             await groupService.UpdateGroup(groupId, groupUpdateDTO);
-
-            mockChargeStationRepository.Verify(repo => repo.GetAll(groupId), Times.Once);
-            mockGroupRepository.Verify(repo => repo.Get(groupId), Times.Once);
+         
+            mockGroupRepository.Verify(repo => repo.GetGroupWithChargeStations(groupId), Times.Once);
         }
 
         [Fact]
@@ -117,7 +112,7 @@ namespace GreenFlux.UnitTests.Application.Services
         {
             var groupId = Guid.NewGuid();
             var group = new Group { Id = groupId, Name = "Group A", Capacity = 100 };
-            mockGroupRepository.Setup(repo => repo.Get(groupId)).ReturnsAsync(group);
+            mockGroupRepository.Setup(repo => repo.GetGroupWithChargeStations(groupId)).ReturnsAsync(group);
 
             var result = await groupService.GetGroup(groupId);
 
@@ -125,7 +120,7 @@ namespace GreenFlux.UnitTests.Application.Services
             Assert.Equal("Group A", result.Name);
             Assert.Equal(100, result.Capacity);
 
-            mockGroupRepository.Verify(repo => repo.Get(groupId), Times.Once);
+            mockGroupRepository.Verify(repo => repo.GetGroupWithChargeStations(groupId), Times.Once);
         }
 
         [Fact]

@@ -14,6 +14,7 @@ namespace GreenFlux.UnitTests.Application.Services
     {
         private readonly Mock<IConnectorRepository> mockConnectorRepository;
         private readonly Mock<IChargeStationRepository> mockChargeStationRepository;
+        private readonly Mock<IGroupRepository> mockGroupRepository;
         private readonly ConnectorService connectorService;
         private readonly IMapper mapper;
 
@@ -26,26 +27,28 @@ namespace GreenFlux.UnitTests.Application.Services
             mapper = mappingConfig.CreateMapper();
 
             mockConnectorRepository = new Mock<IConnectorRepository>();
+            mockGroupRepository = new Mock<IGroupRepository>();
             mockChargeStationRepository = new Mock<IChargeStationRepository>();
-            connectorService = new ConnectorService(mockConnectorRepository.Object, mockChargeStationRepository.Object, mapper);
+            connectorService = new ConnectorService(mockConnectorRepository.Object, mockChargeStationRepository.Object, mockGroupRepository.Object, mapper);
         }
 
         [Fact]
         public async Task Should_ReturnConnectorDTO_WhenConnectorIsSavedSuccessfully()
         {
             var chargeStationId = Guid.NewGuid();
-            var connectorId = 1;
+            var connectorId = 3;
             var connectorDTO = new ConnectorCreateDTO { MaxCurrent = 100 };
-            var group = new Group { Capacity = 50, Id = Guid.NewGuid() };
             var connectors = new List<Connector>
                 {
                     new Connector { Id=1, MaxCurrent = 20 },
                     new Connector { Id=2, MaxCurrent = 20 }
                 };
-            var chargeStation = new ChargeStation { Id = chargeStationId, Group = group, Connectors = connectors };
+            var chargeStation = new ChargeStation { Id = chargeStationId, GroupId = Guid.NewGuid(), Connectors = connectors };
+            var group = new Group { Capacity = 250, Id = Guid.NewGuid(), ChargeStations = new List<ChargeStation> { chargeStation } };
 
             mockChargeStationRepository.Setup(repo => repo.Get(It.IsAny<Guid>())).ReturnsAsync(chargeStation);
             mockConnectorRepository.Setup(repo => repo.Add(It.IsAny<Connector>())).ReturnsAsync(connectorId);
+            mockGroupRepository.Setup(repo => repo.GetGroupWithChargeStations(It.IsAny<Guid>())).ReturnsAsync(group);
 
             var result = await connectorService.SaveConnector(chargeStationId, connectorDTO);
 
@@ -78,20 +81,21 @@ namespace GreenFlux.UnitTests.Application.Services
             var connectorDTO = new ConnectorUpdateDTO { MaxCurrent = 40 };
             var existingConnector = new Connector { Id = id, MaxCurrent = 20, ChargeStationId = chargeStationId };
 
-            var group = new Group { Capacity = 50, Id = Guid.NewGuid() };
+
             var connectors = new List<Connector>
                 {
                     new Connector { Id=id, MaxCurrent = 20 },
                     new Connector { Id=2, MaxCurrent = 20 }
                 };
-            var chargeStation = new ChargeStation { Id = chargeStationId, Group = group, Connectors = connectors };
+            var chargeStation = new ChargeStation { Id = chargeStationId, GroupId = Guid.NewGuid(), Connectors = connectors };
+            var group = new Group { Capacity = 50, Id = Guid.NewGuid(), ChargeStations = new List<ChargeStation> { chargeStation } };
 
             mockChargeStationRepository.Setup(repo => repo.Get(It.IsAny<Guid>())).ReturnsAsync(chargeStation);
             mockConnectorRepository.Setup(repo => repo.Get(It.IsAny<int>(), It.IsAny<Guid>())).ReturnsAsync(existingConnector);
-            mockChargeStationRepository.Setup(repo => repo.GetAll(It.IsAny<Guid>())).ReturnsAsync(new List<ChargeStation> { chargeStation });
+            mockGroupRepository.Setup(repo => repo.GetGroupWithChargeStations(It.IsAny<Guid>())).ReturnsAsync(group);
 
-            var exception = await Assert.ThrowsAsync<CustomException>(() => connectorService.UpdateConnector(chargeStationId, id, connectorDTO));
-            Assert.Equal(ErrorMessages.MaxCurrentIsHigh, exception.Message);
+            var exception = await Assert.ThrowsAsync<MaxCurrentExceedsException>(() => connectorService.UpdateConnector(chargeStationId, id, connectorDTO));
+            Assert.Equal(ErrorMessages.MaxCurrentIsHigh, exception.ErrorMessage);
         }
 
         [Fact]
@@ -102,17 +106,17 @@ namespace GreenFlux.UnitTests.Application.Services
             var connectorDTO = new ConnectorUpdateDTO { MaxCurrent = 40 };
             var existingConnector = new Connector { Id = id, MaxCurrent = 20, ChargeStationId = chargeStationId };
 
-            var group = new Group { Capacity = 100, Id = Guid.NewGuid() };
             var connectors = new List<Connector>
                 {
                     new Connector { Id=id, MaxCurrent = 20 },
                     new Connector { Id=2, MaxCurrent = 20 }
                 };
-            var chargeStation = new ChargeStation { Id = chargeStationId, Group = group, Connectors = connectors };
+            var chargeStation = new ChargeStation { Id = chargeStationId, GroupId = Guid.NewGuid(), Connectors = connectors };
+            var group = new Group { Capacity = 100, Id = Guid.NewGuid(), ChargeStations = new List<ChargeStation> { chargeStation } };
 
             mockChargeStationRepository.Setup(repo => repo.Get(It.IsAny<Guid>())).ReturnsAsync(chargeStation);
             mockConnectorRepository.Setup(repo => repo.Get(It.IsAny<int>(), It.IsAny<Guid>())).ReturnsAsync(existingConnector);
-            mockChargeStationRepository.Setup(repo => repo.GetAll(It.IsAny<Guid>())).ReturnsAsync(new List<ChargeStation> { chargeStation });
+            mockGroupRepository.Setup(repo => repo.GetGroupWithChargeStations(It.IsAny<Guid>())).ReturnsAsync(group);
 
             await connectorService.UpdateConnector(chargeStationId, id, connectorDTO);
 

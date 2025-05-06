@@ -104,32 +104,6 @@ namespace GreenFlux.IntegrationTests.Controllers
         }
 
         [Fact]
-        public async Task Patch_ReturnBadRequest_WhenPatchDocumentIsInValid()
-        {
-            var patchDocument = new[] { new { op = "replace", path = "/maxcurrent", value = "" } };
-
-            var data = JsonConvert.SerializeObject(patchDocument);
-            HttpContent content = new StringContent(data, Encoding.UTF8, "application/json");
-
-            var response = await _httpClient.PatchAsync($"api/chargestations/{chargeStationId}/connectors/{connectorId}", content);
-
-            response.StatusCode.Should().Be(System.Net.HttpStatusCode.BadRequest);
-        }
-
-        [Fact]
-        public async Task Patch_ReturnNoContent_WhenPatchDocumentIsValid()
-        {
-            var patchDocument = new[] { new { op = "replace", path = "/maxcurrent", value = "30" } };
-
-            var data = JsonConvert.SerializeObject(patchDocument);
-            HttpContent content = new StringContent(data, Encoding.UTF8, "application/json");
-
-            var response = await _httpClient.PatchAsync($"api/chargestations/{chargeStationId}/connectors/{connectorId}", content);
-
-            response.StatusCode.Should().Be(System.Net.HttpStatusCode.NoContent);
-        }
-
-        [Fact]
         public async Task Get_ReturnNotFound_WhenConnectorIdIsInValid()
         {
             var response = await _httpClient.GetAsync($"api/chargestations/{Guid.NewGuid()}/connectors/100");

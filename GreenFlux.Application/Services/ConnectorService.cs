@@ -5,9 +5,7 @@ using GreenFlux.Application.Interfaces;
 using GreenFlux.Domain.Constants;
 using GreenFlux.Domain.Entities;
 using GreenFlux.Domain.Interfaces;
-using Microsoft.AspNetCore.JsonPatch;
 using System.Net;
-using System.Text.RegularExpressions;
 
 namespace GreenFlux.Application.Services
 {
@@ -15,28 +13,40 @@ namespace GreenFlux.Application.Services
     {
         private readonly IConnectorRepository connectorRepository;
         private readonly IChargeStationRepository chargeStationRepository;
+        private readonly IGroupRepository groupRepository;
         private readonly IMapper mapper;
 
-        public ConnectorService(IConnectorRepository connectorRepository, IChargeStationRepository chargeStationRepository, IMapper mapper)
+        public ConnectorService(IConnectorRepository connectorRepository, IChargeStationRepository chargeStationRepository, IGroupRepository groupRepository, IMapper mapper)
         {
             this.connectorRepository = connectorRepository;
             this.chargeStationRepository = chargeStationRepository;
+            this.groupRepository = groupRepository;
             this.mapper = mapper;
         }
 
         public async Task<ConnectorDTO> SaveConnector(Guid chargeStationId, ConnectorCreateDTO connectorDTO)
         {
-            var chargeStation= await chargeStationRepository.Get(chargeStationId);
+            var chargeStation = await chargeStationRepository.Get(chargeStationId);
 
-            if (chargeStation.Connectors.Count == ChargeStationConstants.MaxConnectorCount)
+            if (chargeStation.Connectors.FirstOrDefault(a => a.Id == connectorDTO.Id) is not null)
             {
-                throw new CustomException
+                throw new ConnectorCountException
                 {
                     HttpStatusCode = HttpStatusCode.UnprocessableContent,
-                    Message = ErrorMessages.ConnectorCount
+                    ErrorMessage = ErrorMessages.ConnectorId
                 };
             }
 
+            if (chargeStation.Connectors.Count == ChargeStationConstants.MaxConnectorCount)
+            {
+                throw new ConnectorCountException
+                {
+                    HttpStatusCode = HttpStatusCode.UnprocessableContent,
+                    ErrorMessage = ErrorMessages.ConnectorCount
+                };
+            }
+
+            await VerifyCapacity(chargeStationId, 0, connectorDTO.MaxCurrent);
             var connector = mapper.Map<Connector>(connectorDTO);
             connector.ChargeStationId = chargeStationId;
             await connectorRepository.Add(connector);
@@ -48,7 +58,7 @@ namespace GreenFlux.Application.Services
         {
             var connector = await connectorRepository.Get(id, chargeStationId);
             await VerifyCapacity(chargeStationId, connector.MaxCurrent, connectorDTO.MaxCurrent);
-            var mappedConnector = mapper.Map(connectorDTO, connector);     
+            var mappedConnector = mapper.Map(connectorDTO, connector);
             await connectorRepository.Update(mappedConnector);
         }
 
@@ -81,23 +91,15 @@ namespace GreenFlux.Application.Services
 
             var capacityDifference = newCapacity - existingCapacity;
             var chargeStation = await chargeStationRepository.Get(chargeStationId);
-            var totalCapacity = chargeStation.Group.Capacity;
-            var chargeStations = await chargeStationRepository.GetAll(chargeStation.GroupId);
+            var group = await groupRepository.GetGroupWithChargeStations(chargeStation.GroupId);
+            var totalAmps = group.GetCurrentOfAllConnectors();
 
-            if (!chargeStations.Any()) return;
-
-            var totalAmps = 0;
-            foreach (var item in chargeStations)
+            if (group.Capacity < (totalAmps + capacityDifference))
             {
-                totalAmps = totalAmps + item.Connectors.Sum(a => a.MaxCurrent);
-            }
-
-            if (totalCapacity < (totalAmps + capacityDifference))
-            {
-                throw new CustomException
+                throw new MaxCurrentExceedsException
                 {
                     HttpStatusCode = HttpStatusCode.UnprocessableContent,
-                    Message = ErrorMessages.MaxCurrentIsHigh
+                    ErrorMessage = ErrorMessages.MaxCurrentIsHigh
                 };
             }
         }

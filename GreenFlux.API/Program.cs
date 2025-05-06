@@ -1,19 +1,7 @@
 using GreenFlux.API;
 using GreenFlux.Application.MiddleWare;
-using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
-
-// Set up Serilog
-Log.Logger = new LoggerConfiguration()
-    .ReadFrom.Configuration(builder.Configuration)
-    .MinimumLevel.Warning()
-    .WriteTo.Console()
-    .WriteTo.File("logs/log-.txt", rollingInterval: RollingInterval.Day)
-    .CreateLogger();
-
-builder.Logging.ClearProviders();
-builder.Logging.AddSerilog();
 
 // Add services to the container.
 
@@ -21,7 +9,7 @@ builder.Services.AddControllers().AddNewtonsoftJson();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
-builder.Services.AddAppDI(builder.Configuration);
+builder.Services.AddAppDI(builder.Configuration, builder.Environment);
 
 var app = builder.Build();
 
